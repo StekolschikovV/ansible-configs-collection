@@ -1,0 +1,87 @@
+---
+- name: Install and configure Promtail
+  hosts: all
+  become: yes
+  vars:
+    promtail_config_path: "/etc/promtail-local-config.yaml"
+    promtail_service_path: "/etc/systemd/system/promtail.service"
+  tasks:
+    - name: Download Promtail latest release
+      shell: |
+        curl -s https://api.github.com/repos/grafana/loki/releases/latest | \
+        grep browser_download_url | \
+        cut -d '"' -f 4 | \
+        grep promtail-linux-amd64.zip | \
+        wget -i -
+      args:
+        chdir: /tmp
+      register: download_result
+
+    - name: Unzip Promtail
+      ansible.builtin.unarchive:
+        src: "/tmp/promtail-linux-amd64.zip"
+        dest: /usr/local/bin/
+        remote_src: yes
+      when: download_result is changed
+
+    - name: Ensure Promtail is executable
+      ansible.builtin.file:
+        path: /usr/local/bin/promtail
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Create Promtail config file
+      ansible.builtin.copy:
+        dest: "{{ promtail_config_path }}"
+        content: |
+          server:
+            http_listen_port: 9080
+            grpc_listen_port: 0
+
+          positions:
+            filename: /data/loki/positions.yaml
+
+          clients:
+            - url: {{ loki_url }}/loki/api/v1/push
+
+          scrape_configs:
+          - job_name: system
+            static_configs:
+            - targets:
+                - localhost
+              labels:
+                job: varlogs
+                __path__: /var/log/*log
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create Promtail systemd service file
+      ansible.builtin.copy:
+        dest: "{{ promtail_service_path }}"
+        content: |
+          [Unit]
+          Description=Promtail service
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=root
+          ExecStart=/usr/local/bin/promtail -config.file {{ promtail_config_path }}
+
+          [Install]
+          WantedBy=multi-user.target
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: Enable and start Promtail service
+      ansible.builtin.systemd:
+        name: promtail.service
+        enabled: yes
+        state: started
