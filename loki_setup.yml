@@ -1,0 +1,104 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+
+    - name: Check OS version and architecture
+      import_tasks: check_os.yml
+
+    - name: Download Loki Binary
+      get_url:
+        url: "https://github.com/grafana/loki/releases/latest/download/loki-linux-amd64.zip"
+        dest: /usr/local/bin/loki-linux-amd64.zip
+
+    - name: Unzip Loki Binary
+      unarchive:
+        src: /usr/local/bin/loki-linux-amd64.zip
+        dest: /usr/local/bin/
+        remote_src: yes
+
+    - name: Rename and set permissions for Loki
+      command: mv /usr/local/bin/loki-linux-amd64 /usr/local/bin/loki
+      args:
+        removes: /usr/local/bin/loki-linux-amd64
+
+    - name: Set executable permissions for Loki
+      file:
+        path: /usr/local/bin/loki
+        mode: '0755'
+
+    # Step 3: Create Loki Config
+    - name: Create Loki Configuration
+      copy:
+        dest: /usr/local/bin/config-loki.yml
+        content: |
+          auth_enabled: false
+          
+          server:
+            http_listen_port: 3100
+            grpc_listen_port: 9096
+          
+          limits_config:
+            allow_structured_metadata: false
+          
+          common:
+            instance_addr: 127.0.0.1
+            path_prefix: /tmp/loki
+            storage:
+              filesystem:
+                chunks_directory: /tmp/loki/chunks
+                rules_directory: /tmp/loki/rules
+            replication_factor: 1
+            ring:
+              kvstore:
+                store: inmemory
+          
+          query_range:
+            results_cache:
+              cache:
+                embedded_cache:
+                  enabled: true
+                  max_size_mb: 100
+          
+          schema_config:
+            configs:
+              - from: 2020-10-24
+                store: boltdb-shipper
+                object_store: filesystem
+                schema: v13
+                index:
+                  prefix: index_
+                  period: 24h
+          
+          ruler:
+            alertmanager_url: http://localhost:9093
+
+    # Step 4: Configure Loki as a Service
+    - name: Create Loki Service
+      copy:
+        dest: /etc/systemd/system/loki.service
+        content: |
+          [Unit]
+          Description=Loki service
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=root
+          ExecStart=/usr/local/bin/loki -config.file /usr/local/bin/config-loki.yml
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Enable and start Loki service
+      systemd:
+        name: loki
+        enabled: yes
+        state: started
+
+    # Step 5: Access Loki
+    - name: Display Loki access URL
+      debug:
+        msg:
+          - "Access Loki at http://{{ ansible_host }}:3100/metrics"
+          - "Status Loki at http://{{ ansible_host }}:3100/ready"
