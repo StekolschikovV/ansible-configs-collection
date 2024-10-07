@@ -5,7 +5,7 @@
 
   tasks:
     - name: Check OS version and architecture
-      import_tasks: check_os.yml
+      import_tasks: ./func/check_os.yml
 
     - name: Overwrite resolv.conf with Google DNS
       copy:

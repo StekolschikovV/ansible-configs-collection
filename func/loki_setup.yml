@@ -3,9 +3,6 @@
   become: yes
   tasks:
 
-    - name: Check OS version and architecture
-      import_tasks: check_os.yml
-
     - name: Download Loki Binary
       get_url:
         url: "https://github.com/grafana/loki/releases/latest/download/loki-linux-amd64.zip"
@@ -27,7 +24,6 @@
         path: /usr/local/bin/loki
         mode: '0755'
 
-    # Step 3: Create Loki Config
     - name: Create Loki Configuration
       copy:
         dest: /usr/local/bin/config-loki.yml
@@ -73,7 +69,6 @@
           ruler:
             alertmanager_url: http://localhost:9093
 
-    # Step 4: Configure Loki as a Service
     - name: Create Loki Service
       copy:
         dest: /etc/systemd/system/loki.service
@@ -96,7 +91,6 @@
         enabled: yes
         state: started
 
-    # Step 5: Access Loki
     - name: Display Loki access URL
       debug:
         msg:
