@@ -4,13 +4,8 @@
   become: yes
 
   tasks:
-    - name: Ensure this is running on Ubuntu 22.04 (x86_64)
-      assert:
-        that:
-          - ansible_distribution == "Ubuntu"
-          - ansible_distribution_version == "22.04"
-          - ansible_architecture == "x86_64"
-        fail_msg: "This playbook is intended for Ubuntu 22.04 (x86_64) only."
+    - name: Check OS version and architecture
+      import_tasks: check_os.yml
 
     - name: Overwrite resolv.conf with Google DNS
       copy:
