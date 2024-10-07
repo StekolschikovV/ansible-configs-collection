@@ -20,9 +20,15 @@
     - name: Unzip Promtail
       ansible.builtin.unarchive:
         src: "/tmp/promtail-linux-amd64.zip"
-        dest: /usr/local/bin/
+        dest: /tmp/
         remote_src: yes
       when: download_result is changed
+
+    - name: Move Promtail to /usr/local/bin
+      ansible.builtin.command:
+        cmd: mv /tmp/promtail-linux-amd64 /usr/local/bin/promtail
+      args:
+        creates: /usr/local/bin/promtail
 
     - name: Ensure Promtail is executable
       ansible.builtin.file:
@@ -85,3 +91,9 @@
         name: promtail.service
         enabled: yes
         state: started
+
+
+    - name: Display Promtail access URL
+      debug:
+        msg:
+          - "Status at http://{{ ansible_host }}:9080/config"
