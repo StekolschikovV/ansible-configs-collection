@@ -25,3 +25,19 @@
         name: unzip
         state: present
 
+
+    - name: Install apt-transport-https, software-properties-common, wget
+      apt:
+        name:
+          - apt-transport-https
+          - software-properties-common
+          - wget
+        state: present
+        update_cache: yes
+
+    - name: Install curl
+      apt:
+        name:
+          - curl
+        state: present
+        update_cache: yes
