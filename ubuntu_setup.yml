@@ -1,0 +1,32 @@
+---
+- name: Configure Ubuntu 22.04
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Ensure this is running on Ubuntu 22.04 (x86_64)
+      assert:
+        that:
+          - ansible_distribution == "Ubuntu"
+          - ansible_distribution_version == "22.04"
+          - ansible_architecture == "x86_64"
+        fail_msg: "This playbook is intended for Ubuntu 22.04 (x86_64) only."
+
+    - name: Overwrite resolv.conf with Google DNS
+      copy:
+        dest: /etc/resolv.conf
+        content: |
+          nameserver 8.8.8.8
+          nameserver 8.8.4.4
+        mode: '0644'
+
+
+    - name: Ensure apt cache is up-to-date
+      apt:
+        update_cache: yes
+
+    - name: Install unzip
+      apt:
+        name: unzip
+        state: present
+
